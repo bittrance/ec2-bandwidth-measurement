@@ -1,0 +1,76 @@
+#!/bin/bash
+
+set -e
+
+AZ=eu-west-1c
+SG=staging
+
+while getopts "a:g:k:s:t:z:" opt; do
+  case $opt in
+    a) AMI_ID=$OPTARG ;;
+    g) SG=$OPTARG ;;
+    k) KEY_NAME=$OPTARG ;;
+    s) SSH_OPTS=$OPTARG ;;
+    t) INSTANCE_TYPE=$OPTARG ;;
+    z) AZ=$OPTARG ;;
+  esac
+done
+shift $((OPTIND-1))
+
+TEMPFILE=$(mktemp)
+
+aws ec2 run-instances \
+  --image-id $AMI_ID \
+  --security-groups $SG \
+  --key-name $KEY_NAME \
+  --placement AvailabilityZone=$AZ \
+  --instance-type $INSTANCE_TYPE > $TEMPFILE
+
+IID=$(jq -r '.Instances[0].InstanceId' < $TEMPFILE)
+
+on_exit() {
+  echo "Terminating instance $IID" >&2
+  aws ec2 terminate-instances --instance-ids $IID > /dev/null
+}
+
+trap on_exit EXIT
+
+echo "Tagging instance $IID" >&2
+
+aws ec2 create-tags --resources $IID \
+  --tags Key=environment,Value=staging \
+         Key=service,Value=infrastructure \
+         Key=role,Value=test
+
+echo "Waiting for $IID to start" >&2
+
+for n in {1..24} ; do
+  state=$(aws ec2 describe-instances --instance-ids $IID | \
+    jq -r '.Reservations[0].Instances[0].State.Name')
+  if [ $state == 'running' ] ; then
+    break
+  fi
+  if [ $n == "20" ] ; then
+    echo "Timeout waiting for instance to run" >&2
+    exit 1
+  fi
+  sleep 5
+done
+
+IP=$(aws ec2 describe-instances --instance-ids $IID | \
+  jq -r '.Reservations[0].Instances[0].PrivateIpAddress')
+
+echo "Waiting for sshd to come up on $IP" >&2
+
+for n in {1..24} ; do
+  if nc -z $IP 22 ; then
+    break
+  fi
+  if [ $n == "20" ] ; then
+    echo "Timeout waiting for instance to run" >&2
+    exit 1
+  fi
+  sleep 5
+done
+
+ssh -o StrictHostKeyChecking=no $SSH_OPTS ec2-user@$IP "$@"

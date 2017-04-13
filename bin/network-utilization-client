@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -e
+
+INSTANCE_TYPE=$1
+AMI_ID=$2
+IPERF_SERVER=$3
+IPERF_OPTIONS="-p 8301 --time 60 --omit 2 --interval 30"
+KEY=ze_key
+
+./temp-instance-ssh -t $INSTANCE_TYPE -a $AMI_ID -k $KEY -z eu-west-1b bash - <<EOF
+set -e
+sudo yum -q -y --enablerepo=epel install iperf3 jq > /dev/null
+iperf3 -c $IPERF_SERVER $IPERF_OPTIONS --json --get-server-output -R | \
+  jq -r '. * {"instance_type": "$INSTANCE_TYPE", "ami_id": "$AMI_ID"}'
+EOF

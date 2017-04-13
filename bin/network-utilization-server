@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+INSTANCE_TYPE=c3.8xlarge
+AMI_ID=ami-7c1d3d0f
+KEY=ze_key
+
+./temp-instance-ssh -t $INSTANCE_TYPE -a $AMI_ID -k $KEY bash - <<EOF
+set -e
+sudo yum -q -y --enablerepo=epel install iperf3 2> /dev/null
+iperf3 -s -p 8301 --json
+EOF

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -e
+
+SERVER_IP=$1
+
+while read instance_type ami_id ; do
+  echo "Testing $instance_type with $ami_id" >&2
+  ./network-utilization-test.sh $instance_type $ami_id $SERVER_IP
+done
