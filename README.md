@@ -50,6 +50,13 @@ anything is possible.
 $ bin/run-measurements < instances-and-amis.list > bandwidth-$(date +"%Y-%m-%d").json
 ```
 
+### Running single commands
+
+```
+bin/network-utilization-server -k bittrance
+bin/network-utilization-client -k bittrance -t m1.xlarge -a ami-a71f3fd4 -i 10.1.2.3
+```
+
 ## Output
 
 The result from a run is a JSON stream. If you want to further process the

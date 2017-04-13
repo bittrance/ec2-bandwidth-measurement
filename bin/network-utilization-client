@@ -2,15 +2,32 @@
 
 set -e
 
-INSTANCE_TYPE=$1
-AMI_ID=$2
-IPERF_SERVER=$3
+INSTANCE_TYPE=
+AMI_ID=
+AZ=eu-west-1c
+IPERF_SERVER=
 IPERF_OPTIONS="-p 8301 --time 60 --omit 2 --interval 30"
-KEY=ze_key
+KEY_NAME=
 
-./temp-instance-ssh -t $INSTANCE_TYPE -a $AMI_ID -k $KEY -z eu-west-1b bash - <<EOF
+while getopts "a:i:k:t:z:" opt; do
+  case $opt in
+    a) AMI_ID=$OPTARG ;;
+    i) IPERF_SERVER=$OPTARG ;;
+    k) KEY_NAME=$OPTARG ;;
+    t) INSTANCE_TYPE=$OPTARG ;;
+    z) AZ=$OPTARG ;;
+  esac
+done
+shift $((OPTIND-1))
+
+[ -n "$AMI_ID" ] || { echo "Please supply -a <ami-id>" >&2 ; exit 1 ; }
+[ -n "$INSTANCE_TYPE" ] || { echo "Please supply -t <instance-type>" >&2 ; exit 1 ; }
+[ -n "$IPERF_SERVER" ] || { echo "Please supply -i <iperf3-server-ip>" >&2 ; exit 1 ; }
+[ -n "$KEY_NAME" ] || { echo "Please supply -k <key-name>" >&2 ; exit 1 ; }
+
+bin/temp-instance-ssh -t $INSTANCE_TYPE -a $AMI_ID -k $KEY_NAME -z $AZ bash - <<EOF
 set -e
-sudo yum -q -y --enablerepo=epel install iperf3 jq > /dev/null
+sudo yum -q -y --enablerepo=epel install iperf3 jq 2> /dev/null
 iperf3 -c $IPERF_SERVER $IPERF_OPTIONS --json --get-server-output -R | \
   jq -r '. * {"instance_type": "$INSTANCE_TYPE", "ami_id": "$AMI_ID"}'
 EOF
