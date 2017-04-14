@@ -6,11 +6,12 @@ AZ=eu-west-1c
 SG=default
 SUBNET=
 
-while getopts "a:g:k:s:t:z:" opt; do
+while getopts "a:g:k:ps:t:z:" opt; do
   case $opt in
     a) AMI_ID=$OPTARG ;;
     g) SG=$OPTARG ;;
     k) KEY_NAME=$OPTARG ;;
+    p) USE_PRIVATE=true ;;
     s) SUBNET=$OPTARG ;;
     t) INSTANCE_TYPE=$OPTARG ;;
     z) AZ=$OPTARG ;;
@@ -71,8 +72,13 @@ for n in {1..24} ; do
   sleep 5
 done
 
-IP=$(aws --region $REGION ec2 describe-instances --instance-ids $IID | \
-  jq -r '.Reservations[0].Instances[0].PrivateIpAddress')
+if [ -n "$USE_PRIVATE" ] ; then
+  IP=$(aws --region $REGION ec2 describe-instances --instance-ids $IID | \
+    jq -r '.Reservations[0].Instances[0].PrivateIpAddress')
+else
+  IP=$(aws --region $REGION ec2 describe-instances --instance-ids $IID | \
+    jq -r '.Reservations[0].Instances[0].PublicIpAddress')
+fi
 
 echo "Waiting for sshd to come up on $IP" >&2
 

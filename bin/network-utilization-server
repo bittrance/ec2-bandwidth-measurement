@@ -4,14 +4,15 @@ set -e
 
 AMI_ID=ami-7c1d3d0f
 AZ=eu-west-1c
-INSTANCE_TYPE=c3.8xlarge
 KEY_NAME=
+MAYBE_PRIVATE=
 MAYBE_SUBNET=
 
 while getopts "a:k:s:z:" opt; do
   case $opt in
     a) AMI_ID=$OPTARG ;;
     k) KEY_NAME=$OPTARG ;;
+    p) MAYBE_PRIVATE="-p" ;;
     s) MAYBE_SUBNET="-s $OPTARG" ;;
     z) AZ=$OPTARG ;;
   esac
@@ -20,7 +21,14 @@ shift $((OPTIND-1))
 
 [ -n "$KEY_NAME" ] || { echo "Please supply -k <key-name>" >&2 ; exit 1 ; }
 
-bin/temp-instance-ssh $MAYBE_SUBNET -t $INSTANCE_TYPE -a $AMI_ID -k $KEY_NAME -z $AZ bash - <<EOF
+# The cheapest 10 Gbit/s instance type
+if [ -z "$MAYBE_SUBNET" ] ; then
+  INSTANCE_TYPE=c3.8xlarge
+else
+  INSTANCE_TYPE=c4.8xlarge
+fi
+
+bin/temp-instance-ssh $MAYBE_PRIVATE $MAYBE_SUBNET -t $INSTANCE_TYPE -a $AMI_ID -k $KEY_NAME -z $AZ bash - <<EOF
 set -e
 sudo yum -q -y --enablerepo=epel install iperf3 2> /dev/null
 iperf3 -s -p 8301 --json

@@ -13,7 +13,7 @@ runs tests against the server, producing a JSON report, finally terminating
 the instance.
 
 Instances are tagged so that you can attribute the cost in your billing.
-Running a non-trivial list of hosts will typically cost tens of USD.
+Running a non-trivial list of hosts will typically cost tens of USD. Note that AWS EC2 minimum debit interval is 1 hour, so 
 
 *Buyer beware*: measuring bandwidth well is *hard* when you have two hosts
 and a crossed TP cable. AWS EC2 is a massive global infrastructure with
