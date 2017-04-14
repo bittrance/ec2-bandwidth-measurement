@@ -3,14 +3,15 @@
 set -e
 
 AZ=eu-west-1c
-SG=staging
+SG=default
+SUBNET=
 
 while getopts "a:g:k:s:t:z:" opt; do
   case $opt in
     a) AMI_ID=$OPTARG ;;
     g) SG=$OPTARG ;;
     k) KEY_NAME=$OPTARG ;;
-    s) SSH_OPTS=$OPTARG ;;
+    s) SUBNET=$OPTARG ;;
     t) INSTANCE_TYPE=$OPTARG ;;
     z) AZ=$OPTARG ;;
   esac
@@ -18,10 +19,23 @@ done
 shift $((OPTIND-1))
 
 TEMPFILE=$(mktemp)
+REGION=$(echo "$AZ" | sed -E 's/(.*)./\1/g')
 
-aws ec2 run-instances \
+if [ -z "$SUBNET" ] ; then
+  SG_CONF="--security-group $SG"
+else
+  VPC=$(aws --region $REGION ec2 describe-subnets --subnet-ids $SUBNET | jq -r .Subnets[0].VpcId)
+  ID=$(aws --region $REGION ec2 describe-security-groups \
+    --filters Name=vpc-id,Values=$VPC Name=group-name,Values=$SG | \
+    jq -r '.SecurityGroups[0].GroupId')
+  [ -n "$ID" -a "$ID" != "null" ] || { echo "Could not find $SG in $SUBNET" ; exit 1 ; }
+  SG_CONF="--security-group-ids $ID"
+fi
+
+aws --region $REGION ec2 run-instances \
   --image-id $AMI_ID \
-  --security-groups $SG \
+  ${SUBNET:+--subnet $SUBNET} \
+  $SG_CONF \
   --key-name $KEY_NAME \
   --placement AvailabilityZone=$AZ \
   --instance-type $INSTANCE_TYPE > $TEMPFILE
@@ -30,14 +44,14 @@ IID=$(jq -r '.Instances[0].InstanceId' < $TEMPFILE)
 
 on_exit() {
   echo "Terminating instance $IID" >&2
-  aws ec2 terminate-instances --instance-ids $IID > /dev/null
+  aws --region $REGION ec2 terminate-instances --instance-ids $IID > /dev/null
 }
 
 trap on_exit EXIT
 
 echo "Tagging instance $IID" >&2
 
-aws ec2 create-tags --resources $IID \
+aws --region $REGION ec2 create-tags --resources $IID \
   --tags Key=environment,Value=staging \
          Key=service,Value=infrastructure \
          Key=role,Value=test
@@ -45,9 +59,9 @@ aws ec2 create-tags --resources $IID \
 echo "Waiting for $IID to start" >&2
 
 for n in {1..24} ; do
-  state=$(aws ec2 describe-instances --instance-ids $IID | \
+  state=$(aws --region $REGION ec2 describe-instances --instance-ids $IID | \
     jq -r '.Reservations[0].Instances[0].State.Name')
-  if [ $state == 'running' ] ; then
+  if [ "$state" == 'running' ] ; then
     break
   fi
   if [ $n == "20" ] ; then
@@ -57,7 +71,7 @@ for n in {1..24} ; do
   sleep 5
 done
 
-IP=$(aws ec2 describe-instances --instance-ids $IID | \
+IP=$(aws --region $REGION ec2 describe-instances --instance-ids $IID | \
   jq -r '.Reservations[0].Instances[0].PrivateIpAddress')
 
 echo "Waiting for sshd to come up on $IP" >&2
@@ -66,7 +80,7 @@ for n in {1..24} ; do
   if nc -z $IP 22 ; then
     break
   fi
-  if [ $n == "20" ] ; then
+  if [ "$n" == "20" ] ; then
     echo "Timeout waiting for instance to run" >&2
     exit 1
   fi

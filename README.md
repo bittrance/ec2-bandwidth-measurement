@@ -20,6 +20,12 @@ and a crossed TP cable. AWS EC2 is a massive global infrastructure with
 software defined networking, which makes it a fantasy land where essentially
 anything is possible.
 
+## Limitations
+
+Currently, this tool uses the private address of started hosts, which
+effectively means you need a VPN that is part of the security group that
+you give to instances.
+
 ## Prerequisites
 
 - You need a table of instance type/ami pairs like so:
@@ -45,6 +51,13 @@ anything is possible.
   are probably better off running them in screen/tmux in a dedicated EC2
   instance.
 
+### Find a relevant AMI for a region
+
+You can use the AWS CLI to extract AMI ID:s.
+```
+aws ec2 describe-images --owners amazon --filters Name=architecture,Values=x86_64 Name=root-device-type,Values=instance-store Name=virtualization-type,Values=paravirtual | jq -r '.Images[] | select(.Name != null) | select(.Name | contains("amzn-ami")) | select(.Name | contains("minimal") | not) | .Name,.ImageId'
+```
+
 ## Running
 ```
 $ bin/run-measurements < instances-and-amis.list > bandwidth-$(date +"%Y-%m-%d").json
@@ -56,6 +69,12 @@ $ bin/run-measurements < instances-and-amis.list > bandwidth-$(date +"%Y-%m-%d")
 bin/network-utilization-server -k bittrance
 bin/network-utilization-client -k bittrance -t m1.xlarge -a ami-a71f3fd4 -i 10.1.2.3
 ```
+
+If you want to start your instance in a VPC, you need to use the `-s` and give a subnet id in which to start the server or client instance:
+```
+bin/network-utilization-server -k bittrance -z eu-west-1a -s subnet-12345678 -a ami-ae0937c8
+```
+Currently, the instance will be added to the VPC default security group.
 
 ## Output
 

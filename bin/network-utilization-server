@@ -6,10 +6,13 @@ AMI_ID=ami-7c1d3d0f
 AZ=eu-west-1c
 INSTANCE_TYPE=c3.8xlarge
 KEY_NAME=
+MAYBE_SUBNET=
 
-while getopts "k:s:z:" opt; do
+while getopts "a:k:s:z:" opt; do
   case $opt in
+    a) AMI_ID=$OPTARG ;;
     k) KEY_NAME=$OPTARG ;;
+    s) MAYBE_SUBNET="-s $OPTARG" ;;
     z) AZ=$OPTARG ;;
   esac
 done
@@ -17,7 +20,7 @@ shift $((OPTIND-1))
 
 [ -n "$KEY_NAME" ] || { echo "Please supply -k <key-name>" >&2 ; exit 1 ; }
 
-bin/temp-instance-ssh -t $INSTANCE_TYPE -a $AMI_ID -k $KEY_NAME -z $AZ bash - <<EOF
+bin/temp-instance-ssh $MAYBE_SUBNET -t $INSTANCE_TYPE -a $AMI_ID -k $KEY_NAME -z $AZ bash - <<EOF
 set -e
 sudo yum -q -y --enablerepo=epel install iperf3 2> /dev/null
 iperf3 -s -p 8301 --json
