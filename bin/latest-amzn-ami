@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -e
+
+ONLY_LATEST=-1
+REGION=
+ROOT_DEVICE=instance-store
+VIRTUALIZATION_TYPE=hvm
+
+while getopts "aepr:" opt; do
+  case $opt in
+    a) ONLY_LATEST='' ;;
+    e) ROOT_DEVICE='ebs' ;;
+    p) VIRTUALIZATION_TYPE='paravirtual' ;;
+    r) REGION=$OPTARG ;;
+  esac
+done
+
+[ -n "$REGION" ] || { echo "Please select explicit region with -r <region>" ; exit 1 ; }
+
+echo "Latest ami in $REGION for $ROOT_DEVICE on $VIRTUALIZATION_TYPE" >&2
+
+aws --region "$REGION" ec2 describe-images --owners amazon \
+  --filters Name=architecture,Values=x86_64 \
+    Name=root-device-type,Values=$ROOT_DEVICE \
+    Name=virtualization-type,Values=$VIRTUALIZATION_TYPE | \
+    jq '.Images[] | select(.Name != null) | select(.Name | contains("amzn-ami")) | select(.Name | contains("minimal") | not)' | \
+    jq -rs "sort_by(.CreationDate) | .[$ONLY_LATEST] | .Name + \" \" +.ImageId"

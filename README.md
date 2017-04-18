@@ -13,7 +13,7 @@ runs tests against the server, producing a JSON report, finally terminating
 the instance.
 
 Instances are tagged so that you can attribute the cost in your billing.
-Running a non-trivial list of hosts will typically cost tens of USD. Note that AWS EC2 minimum debit interval is 1 hour, so 
+Running a non-trivial list of hosts will typically cost tens of USD. Note that AWS EC2 minimum debit interval is 1 hour, so
 
 *Buyer beware*: measuring bandwidth well is *hard* when you have two hosts
 and a crossed TP cable. AWS EC2 is a massive global infrastructure with
@@ -53,10 +53,15 @@ you give to instances.
 
 ### Find a relevant AMI for a region
 
-You can use the AWS CLI to extract AMI ID:s.
+Most commands here require an AMI ID. You can find these with the included
+command, e.g.:
 ```
-aws ec2 describe-images --owners amazon --filters Name=architecture,Values=x86_64 Name=root-device-type,Values=instance-store Name=virtualization-type,Values=paravirtual | jq -r '.Images[] | select(.Name != null) | select(.Name | contains("amzn-ami")) | select(.Name | contains("minimal") | not) | .Name,.ImageId'
+$ bin/latest-amzn-ami -r us-east-1
+Latest ami in us-east-1 for instance-store on hvm
+amzn-ami-hvm-2017.03.0.20170401-x86_64-s3 ami-d5cf48c3
 ```
+Use `-e` to get a EBS-based AMI and `-p` to get a paravirtual AMI. You can
+give `-a` to see the full list of available AMIs for the given filters.
 
 ## Running
 ```
