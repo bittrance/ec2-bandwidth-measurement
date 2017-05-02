@@ -71,6 +71,31 @@ $ bin/run-measurements < instances-and-amis.list > bandwidth-$(date +"%Y-%m-%d")
 ### Running single commands
 
 ```
+$ bin/network-utilization-server -h
+Usage: bin/network-utilization-server -a <ami-id> -k <key-name> -z <availability-zone>
+ -a <ami-id> AMI to use; should allow yum and iperf3
+ -g <classic-sg-id | vpc-sg-name> (defaults to 'default')
+ -k <key-name> EC2 key-pair name to use for SSH access
+ -p Use instance private IP for SSH access (assumes VPN)
+ -s <subnet-id> Specify subnet on which to add node
+ -t <instance-type> Intance type to start (defaults to c[34].8xlarge)
+ -z <availability-zone> Where to start instance; also used as region
+```
+
+```
+$ bin/network-utilization-client -h
+Usage: bin/network-utilization-client -a <ami-id> -k <key-name> -t <instance-type> -z <availability-zone>
+ -a <ami-id> AMI to use; should allow yum and iperf3
+ -g <classic-sg-id | vpc-sg-name> (defaults to 'default')
+ -i <server IP> Private IP from network-utilization-server
+ -k <key-name> EC2 key-pair name to use for SSH access
+ -p Use instance private IP for SSH access (assumes VPN)
+ -s <subnet-id> Specify subnet on which to add node
+ -t <instance-type> Intance type to start
+ -z <availability-zone> Where to start instance; also used as region
+```
+
+```
 bin/network-utilization-server -k bittrance
 bin/network-utilization-client -k bittrance -t m1.xlarge -a ami-a71f3fd4 -i 10.1.2.3
 ```

@@ -12,7 +12,22 @@ MAYBE_SG=
 MAYBE_SUBNET=
 USE_PRIVATE=
 
-while getopts "a:g:i:k:ps:t:z:" opt; do
+function usage {
+  (
+    echo "Usage: $0 -a <ami-id> -k <key-name> -t <instance-type> -z <availability-zone>"
+    echo " -a <ami-id> AMI to use; should allow yum and iperf3"
+    echo " -g <classic-sg-id | vpc-sg-name> (defaults to 'default')"
+    echo " -i <server IP> Private IP from network-utilization-server"
+    echo " -k <key-name> EC2 key-pair name to use for SSH access"
+    echo " -p Use instance private IP for SSH access (assumes VPN)"
+    echo " -s <subnet-id> Specify subnet on which to add node"
+    echo " -t <instance-type> Intance type to start"
+    echo " -z <availability-zone> Where to start instance; also used as region"
+    ) >&2
+    exit 2
+}
+
+while getopts "a:g:hi:k:ps:t:z:" opt; do
   case $opt in
     a) AMI_ID=$OPTARG ;;
     g) MAYBE_SG="-g $OPTARG" ;;
@@ -22,6 +37,7 @@ while getopts "a:g:i:k:ps:t:z:" opt; do
     s) MAYBE_SUBNET="-s $OPTARG" ;;
     t) INSTANCE_TYPE=$OPTARG ;;
     z) AZ=$OPTARG ;;
+    h|*) usage ;;
   esac
 done
 shift $((OPTIND-1))
