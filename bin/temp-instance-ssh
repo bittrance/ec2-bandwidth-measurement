@@ -45,7 +45,7 @@ IID=$(jq -r '.Instances[0].InstanceId' < "$TEMPFILE")
 
 on_exit() {
   echo "Terminating instance $IID" >&2
-  aws --region "$REGION" ec2 terminate-instances --instance-ids "$IID" #> /dev/null
+  aws --region "$REGION" ec2 terminate-instances --instance-ids "$IID" > /dev/null
 }
 
 trap on_exit EXIT

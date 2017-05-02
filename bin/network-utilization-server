@@ -7,11 +7,14 @@ AZ=eu-west-1c
 INSTANCE_TYPE=
 KEY_NAME=
 MAYBE_PRIVATE=
+MAYBE_SG=
 MAYBE_SUBNET=
+MAYBE_PRIVATE=
 
-while getopts "a:k:s:t:z:" opt; do
+while getopts "a:g:k:ps:t:z:" opt; do
   case $opt in
     a) AMI_ID=$OPTARG ;;
+    g) MAYBE_SG="-g $OPTARG" ;;
     k) KEY_NAME=$OPTARG ;;
     p) MAYBE_PRIVATE="-p" ;;
     s) MAYBE_SUBNET="-s $OPTARG" ;;
@@ -32,7 +35,7 @@ if [ -z "$INSTANCE_TYPE" ] ; then
   fi
 fi
 
-bin/temp-instance-ssh $MAYBE_PRIVATE $MAYBE_SUBNET -t "$INSTANCE_TYPE" -a "$AMI_ID" -k "$KEY_NAME" -z "$AZ" bash - <<EOF
+bin/temp-instance-ssh $MAYBE_PRIVATE $MAYBE_SG $MAYBE_SUBNET -t "$INSTANCE_TYPE" -a "$AMI_ID" -k "$KEY_NAME" -z "$AZ" bash - <<EOF
 set -e
 sudo yum -q -y --enablerepo=epel install iperf3 2> /dev/null
 iperf3 -s -p 8301 --json
