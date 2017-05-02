@@ -23,36 +23,36 @@ TEMPFILE=$(mktemp)
 REGION=$(echo "$AZ" | sed -E 's/(.*)./\1/g')
 
 if [ -z "$SUBNET" ] ; then
-  SG_CONF="--security-group $SG"
+  SG_CONF="--security-groups $SG"
 else
-  VPC=$(aws --region $REGION ec2 describe-subnets --subnet-ids $SUBNET | jq -r .Subnets[0].VpcId)
-  ID=$(aws --region $REGION ec2 describe-security-groups \
-    --filters Name=vpc-id,Values=$VPC Name=group-name,Values=$SG | \
+  VPC=$(aws --region "$REGION" ec2 describe-subnets --subnet-ids "$SUBNET" | jq -r .Subnets[0].VpcId)
+  ID=$(aws --region "$REGION" ec2 describe-security-groups \
+    --filters Name=vpc-id,Values="$VPC" Name=group-name,Values="$SG" | \
     jq -r '.SecurityGroups[0].GroupId')
   [ -n "$ID" -a "$ID" != "null" ] || { echo "Could not find $SG in $SUBNET" ; exit 1 ; }
   SG_CONF="--security-group-ids $ID"
 fi
 
-aws --region $REGION ec2 run-instances \
-  --image-id $AMI_ID \
+aws --region "$REGION" ec2 run-instances \
+  --image-id "$AMI_ID" \
   ${SUBNET:+--subnet $SUBNET} \
   $SG_CONF \
-  --key-name $KEY_NAME \
-  --placement AvailabilityZone=$AZ \
-  --instance-type $INSTANCE_TYPE > $TEMPFILE
+  --key-name "$KEY_NAME" \
+  --placement AvailabilityZone="$AZ" \
+  --instance-type "$INSTANCE_TYPE" > "$TEMPFILE"
 
-IID=$(jq -r '.Instances[0].InstanceId' < $TEMPFILE)
+IID=$(jq -r '.Instances[0].InstanceId' < "$TEMPFILE")
 
 on_exit() {
   echo "Terminating instance $IID" >&2
-  aws --region $REGION ec2 terminate-instances --instance-ids $IID > /dev/null
+  aws --region "$REGION" ec2 terminate-instances --instance-ids "$IID" #> /dev/null
 }
 
 trap on_exit EXIT
 
 echo "Tagging instance $IID" >&2
 
-aws --region $REGION ec2 create-tags --resources $IID \
+aws --region "$REGION" ec2 create-tags --resources "$IID" \
   --tags Key=environment,Value=staging \
          Key=service,Value=infrastructure \
          Key=role,Value=test
@@ -60,7 +60,7 @@ aws --region $REGION ec2 create-tags --resources $IID \
 echo "Waiting for $IID to start" >&2
 
 for n in {1..24} ; do
-  state=$(aws --region $REGION ec2 describe-instances --instance-ids $IID | \
+  state=$(aws --region "$REGION" ec2 describe-instances --instance-ids "$IID" | \
     jq -r '.Reservations[0].Instances[0].State.Name')
   if [ "$state" == 'running' ] ; then
     break
@@ -73,17 +73,17 @@ for n in {1..24} ; do
 done
 
 if [ -n "$USE_PRIVATE" ] ; then
-  IP=$(aws --region $REGION ec2 describe-instances --instance-ids $IID | \
+  IP=$(aws --region "$REGION" ec2 describe-instances --instance-ids "$IID" | \
     jq -r '.Reservations[0].Instances[0].PrivateIpAddress')
 else
-  IP=$(aws --region $REGION ec2 describe-instances --instance-ids $IID | \
+  IP=$(aws --region "$REGION" ec2 describe-instances --instance-ids "$IID" | \
     jq -r '.Reservations[0].Instances[0].PublicIpAddress')
 fi
 
 echo "Waiting for sshd to come up on $IP" >&2
 
 for n in {1..24} ; do
-  if nc -z $IP 22 ; then
+  if nc -z "$IP" 22 ; then
     break
   fi
   if [ "$n" == "20" ] ; then
@@ -93,4 +93,4 @@ for n in {1..24} ; do
   sleep 5
 done
 
-ssh -o StrictHostKeyChecking=no $SSH_OPTS ec2-user@$IP "$@"
+ssh -o StrictHostKeyChecking=no $SSH_OPTS ec2-user@"$IP" "$@"
